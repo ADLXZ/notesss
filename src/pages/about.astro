@@ -9,14 +9,261 @@ const base = import.meta.env.BASE_URL;
 	description="About me"
 	pubDate={new Date()}
 >
-	<img
-		src={`${base}sei.jpeg`}
-		alt="favorite character"
-		style="width:750px; border-radius:60px;"
-	/>
+	<div class="about-wrap">
+		<img
+			src={`${base}sei.jpeg`}
+			alt="favorite character"
+			class="main-image"
+		/>
 
-	<p style="margin-top:1rem; font-style:italic;">
-		This is why I study. <br />
-		Eres el código que cambió mi vida.
-	</p>
+		<p class="quote">
+			This is why I study.<br />
+			Eres el código que cambió mi vida.
+		</p>
+
+		<div id="music-card">
+			<div class="top-row">
+				<div class="song-title">宇宙の広さよりも遠くて近い</div>
+				<div id="time">0:00 / 0:00</div>
+			</div>
+
+			<input id="progress" type="range" value="0" min="0" max="100" step="1" />
+
+			<div class="controls">
+				<button id="play-btn">
+					<span id="heart">♥</span>
+				</button>
+			</div>
+
+			<audio id="bg-music" src={`${base}world.mp3`}></audio>
+		</div>
+	</div>
 </Layout>
+
+<style>
+	.about-wrap {
+		width: min(750px, 92vw);
+		margin: 0 auto;
+	}
+
+	.main-image {
+		width: 750px;
+		max-width: 100%;
+		border-radius: 60px;
+		display: block;
+	}
+
+	.quote {
+		margin-top: 1rem;
+		margin-bottom: 24px;
+		font-style: italic;
+		font-size: 1.1rem;
+		line-height: 1.7;
+	}
+
+	#music-card 
+	{
+		width: 100%;
+		margin-top: 28px;
+		padding: 20px;
+		border-radius: 24px;
+
+		background: rgba(255, 255, 255, 0.25);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.song-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: #6d4c5b;
+		text-align: center;
+		line-height: 1.4;
+	}
+
+	#progress {
+		width: 100%;
+		accent-color: #d88aa5;
+		cursor: pointer;
+	}
+
+	#play-btn {
+		width: 72px;
+		height: 72px;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+	}
+
+	#heart {
+		display: inline-block;
+		font-size: 46px;
+		line-height: 1;
+		color: #ff8fb1;
+
+		transform: scale(1);
+		transition: transform 0.08s ease-out, color 0.2s ease;
+	
+		filter: drop-shadow(0 0 6px rgba(255, 150, 180, 0.6));
+		user-select: none;
+	}
+
+	/* 播放时更亮 */
+	#play-btn.playing #heart {
+		color: #ff6fa5;
+		filter: drop-shadow(0 0 10px rgba(255, 120, 170, 0.8));
+	}
+
+	#play-btn.playing #heart {
+		color: #d86a98;
+	}
+
+	.top-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.95rem;
+		color: #6d4c5b;
+	}
+
+	.song-title {
+		font-weight: 600;
+	}
+
+	#time {
+		font-size: 0.9rem;
+		opacity: 0.8;
+	}
+
+	.controls {
+		display: flex;
+		justify-content: center;
+	}
+
+	@media (max-width: 900px) {
+
+		#music-card {
+			position: static;
+			margin-top: 24px;
+		}
+	}
+</style>
+
+<script>
+	const audio = document.getElementById('bg-music');
+	const btn = document.getElementById('play-btn');
+	const progress = document.getElementById('progress');
+	const heart = document.getElementById('heart');
+	const timeDisplay = document.getElementById('time');
+
+	let audioContext;
+	let analyser;
+	let source;
+	let dataArray;
+	let animationId;
+
+	function formatTime(t) {
+		const min = Math.floor(t / 60);
+		const sec = Math.floor(t % 60);
+		return `${min}:${sec.toString().padStart(2, '0')}`;
+	}
+	function updateProgress() {
+		if (!audio.duration) return;
+		progress.value = String((audio.currentTime / audio.duration) * 100);
+	}
+
+	function updateHeart() {
+		if (!analyser || !dataArray) return;
+
+		analyser.getByteFrequencyData(dataArray);
+
+		let sum = 0;
+		for (let i = 0; i < dataArray.length; i++) {
+			sum += dataArray[i];
+		}
+		const average = sum / dataArray.length;
+
+		// 👉 放大幅度更明显
+		const scale = 1 + average / 90;
+
+		// 👉 加一点“弹性”
+		const bounce = Math.sin(Date.now() / 120) * 0.05;
+
+		heart.style.transform = `scale(${scale + bounce})`;
+
+		if (!audio.paused) {
+			animationId = requestAnimationFrame(updateHeart);
+		}
+	}
+
+	async function setupAudioAnalyzer() {
+		if (audioContext) return;
+
+		audioContext = new window.AudioContext();
+		analyser = audioContext.createAnalyser();
+		analyser.fftSize = 64;
+
+		source = audioContext.createMediaElementSource(audio);
+		source.connect(analyser);
+		analyser.connect(audioContext.destination);
+
+		dataArray = new Uint8Array(analyser.frequencyBinCount);
+	}
+
+	btn.addEventListener('click', async () => {
+		await setupAudioAnalyzer();
+
+		if (audioContext.state === 'suspended') {
+			await audioContext.resume();
+		}
+
+		if (audio.paused) {
+			await audio.play();
+			btn.classList.add('playing');
+			heart.textContent = '♥';
+			updateHeart();
+		} else {
+			audio.pause();
+			btn.classList.remove('playing');
+			heart.textContent = '♥';
+			heart.style.transform = 'scale(1)';
+			if (animationId) cancelAnimationFrame(animationId);
+		}
+	});
+
+	audio.addEventListener('timeupdate', updateProgress);
+	audio.addEventListener('loadedmetadata', () => {
+		timeDisplay.textContent = `0:00 / ${formatTime(audio.duration)}`;
+	});
+
+	audio.addEventListener('timeupdate', () => {
+		if (!audio.duration) return;
+
+		progress.value = String((audio.currentTime / audio.duration) * 100);
+
+		timeDisplay.textContent =
+			`${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+	});
+	progress.addEventListener('input', () => {
+		if (!audio.duration) return;
+		audio.currentTime = (Number(progress.value) / 100) * audio.duration;
+	});
+
+	audio.addEventListener('ended', () => {
+		btn.classList.remove('playing');
+		heart.textContent = '♥';
+		heart.style.transform = 'scale(1)';
+		progress.value = '0';
+		if (animationId) cancelAnimationFrame(animationId);
+	});
+</script>
