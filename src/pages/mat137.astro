@@ -2,7 +2,8 @@
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+
+const base = import.meta.env.BASE_URL;
 ---
 
 <html lang="en">
@@ -15,13 +16,8 @@ import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
       <h1>MAT137 Notes</h1>
       <p>This page contains my notes for MAT137.</p>
 
-      <h2>Units</h2>
       <ul>
-        <li><a href="/blog/mat137/limits">Unit 1: Limits</a></li>
-        <li><a href="/blog/mat137/derivatives">Unit 2: Derivatives</a></li>
-        <li><a href="/blog/mat137/integration">Unit 3: Integration</a></li>
-        <li><a href="/blog/mat137/sequences">Unit 4: Sequences</a></li>
-        <li><a href="/blog/mat137/series">Unit 5: Series</a></li>
+        <li><a href={`${base}blog/mat137/limits/`}>Limits</a></li>
       </ul>
     </main>
     <Footer />
