@@ -38,6 +38,19 @@ const base = import.meta.env.BASE_URL;
 			<audio id="bg-music" src={`${base}world.mp3`}></audio>
 		</div>
 	</div>
+
+	<div id="clock-widget" class="floating-widget clock-widget">
+		<div id="clock-time">12:00</div>
+		<div id="clock-date">Mar 24 · Mon</div>
+	</div>
+
+	<div id="weather-widget" class="floating-widget weather-widget">
+		<button id="weather-btn" type="button">☁</button>
+		<div id="weather-popup" class="weather-popup hidden">
+			<div class="weather-title">Toronto DT</div>
+			<div id="weather-content">Click the cloud</div>
+		</div>
+	</div>
 </Layout>
 
 <style>
@@ -157,6 +170,110 @@ const base = import.meta.env.BASE_URL;
 			margin-top: 24px;
 		}
 	}
+
+	.floating-widget {
+		position: fixed;
+		z-index: 1200;
+		user-select: none;
+		cursor: grab;
+	}
+
+	.floating-widget:active {
+		cursor: grabbing;
+	}
+
+	.clock-widget {
+		top: 100px;
+		right: 40px;
+
+		width: 230px;
+		padding: 24px 28px;
+		border-radius: 28px;
+
+		background: rgba(255, 255, 255, 0.32);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+
+		box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+		text-align: center;
+	}
+
+	#clock-time {
+		font-size: 3.5rem;
+		font-weight: 800;
+		letter-spacing: 2px;
+		color: #7c5b68;
+	}
+
+	#clock-date {
+		margin-top: 6px;
+		font-size: 1rem;
+		letter-spacing: 1px;
+		color: #8a6c79;
+		opacity: 0.85;
+	}
+
+	.weather-widget {
+		top: 250px;
+		right: 60px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+	}
+
+	#weather-btn {
+		width: 72px;
+		height: 72px;
+		border: none;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.3);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+		font-size: 2rem;
+		cursor: pointer;
+		color: #8a6c79;
+	}
+
+	.weather-popup {
+		min-width: 180px;
+		padding: 14px 16px;
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.28);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+		text-align: center;
+		color: #6d4c5b;
+	}
+
+	.weather-title {
+		font-weight: 700;
+		margin-bottom: 6px;
+	}
+
+	.hidden {
+		display: none;
+	}
+
+	@media (max-width: 900px) {
+		.clock-widget {
+			top: 90px;
+			right: 20px;
+			width: 200px;
+			padding: 16px 18px;
+		}
+
+		#clock-time {
+			font-size: 2.2rem;
+		}
+
+		.weather-widget {
+			top: 190px;
+			right: 20px;
+		}
+	}
 </style>
 
 <script>
@@ -165,12 +282,20 @@ const base = import.meta.env.BASE_URL;
 	const progress = document.getElementById('progress');
 	const heart = document.getElementById('heart');
 	const timeDisplay = document.getElementById('time');
+	const clockTime = document.getElementById('clock-time');
+	const clockDate = document.getElementById('clock-date');
+	const weatherBtn = document.getElementById('weather-btn');
+	const weatherPopup = document.getElementById('weather-popup');
+	const weatherContent = document.getElementById('weather-content');
+	
 
 	let audioContext;
 	let analyser;
 	let source;
 	let dataArray;
 	let animationId;
+	let weatherLoaded = false;
+	
 
 	function formatTime(t) {
 		const min = Math.floor(t / 60);
@@ -204,6 +329,48 @@ const base = import.meta.env.BASE_URL;
 		if (!audio.paused) {
 			animationId = requestAnimationFrame(updateHeart);
 		}
+	}
+
+	function updateClock() {
+	const now = new Date();
+
+	const hours = String(now.getHours()).padStart(2, '0');
+	const minutes = String(now.getMinutes()).padStart(2, '0');
+
+	// 时间
+	clockTime.textContent = `${hours}:${minutes}`;
+
+	// 月份
+	const months = [
+		'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+		'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+	];
+
+	// 星期
+	const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+	const month = months[now.getMonth()];
+	const date = now.getDate();
+	const day = days[now.getDay()];
+
+	// 👉 设置日期
+	clockDate.textContent = `${month} ${date} · ${day}`;
+}
+
+	updateClock();
+	setInterval(updateClock, 1000);
+
+	function weatherCodeToText(code) {
+		if (code === 0) return 'Clear';
+		if ([1, 2, 3].includes(code)) return 'Cloudy';
+		if ([45, 48].includes(code)) return 'Fog';
+		if ([51, 53, 55, 56, 57].includes(code)) return 'Drizzle';
+		if ([61, 63, 65, 66, 67].includes(code)) return 'Rain';
+		if ([71, 73, 75, 77].includes(code)) return 'Snow';
+		if ([80, 81, 82].includes(code)) return 'Rain showers';
+		if ([85, 86].includes(code)) return 'Snow showers';
+		if ([95, 96, 99].includes(code)) return 'Thunderstorm';
+		return 'Unknown';
 	}
 
 	async function setupAudioAnalyzer() {
@@ -266,4 +433,70 @@ const base = import.meta.env.BASE_URL;
 		progress.value = '0';
 		if (animationId) cancelAnimationFrame(animationId);
 	});
+
+	async function loadTorontoWeather() {
+		try {
+			weatherContent.textContent = 'Loading...';
+
+			const res = await fetch(
+				'https://api.open-meteo.com/v1/forecast?latitude=43.6532&longitude=-79.3832&current=temperature_2m,weather_code&timezone=America%2FToronto'
+			);
+
+			if (!res.ok) {
+				throw new Error('Weather request failed');
+			}
+
+			const data = await res.json();
+			const temp = Math.round(data.current.temperature_2m);
+			const code = data.current.weather_code;
+			const text = weatherCodeToText(code);
+
+			weatherContent.textContent = `${temp}°C · ${text}`;
+			weatherLoaded = true;
+		} catch (err) {
+			weatherContent.textContent = 'Unable to load weather';
+		}
+	}
+
+	weatherBtn.addEventListener('click', async () => {
+		weatherPopup.classList.toggle('hidden');
+
+		if (!weatherLoaded && !weatherPopup.classList.contains('hidden')) {
+			await loadTorontoWeather();
+		}
+	});
+
+	// ===== Drag =====
+	function makeDraggable(el, handle = el) {
+		let isDragging = false;
+		let offsetX = 0;
+		let offsetY = 0;
+
+		handle.addEventListener('mousedown', (e) => {
+			isDragging = true;
+			const rect = el.getBoundingClientRect();
+			offsetX = e.clientX - rect.left;
+			offsetY = e.clientY - rect.top;
+			el.style.left = `${rect.left}px`;
+			el.style.top = `${rect.top}px`;
+			el.style.right = 'auto';
+			el.style.bottom = 'auto';
+		});
+
+		document.addEventListener('mousemove', (e) => {
+			if (!isDragging) return;
+			el.style.left = `${e.clientX - offsetX}px`;
+			el.style.top = `${e.clientY - offsetY}px`;
+		});
+
+		document.addEventListener('mouseup', () => {
+			isDragging = false;
+		});
+	}
+
+	const clockWidget = document.getElementById('clock-widget');
+	const weatherWidget = document.getElementById('weather-widget');
+
+	makeDraggable(clockWidget);
+	makeDraggable(weatherWidget);
 </script>
